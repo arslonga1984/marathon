@@ -1,10 +1,4 @@
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  type Firestore,
-} from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import type { AppStateV1 } from '../types';
 import { db } from './firebase';
 import { defaultSettings } from './plan';

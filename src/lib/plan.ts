@@ -1,4 +1,4 @@
-import type { IsoDate, PlanDay, PlanWeek, Settings, WorkoutType } from '../types';
+import type { PlanDay, PlanWeek, Settings, WorkoutType } from '../types';
 import { addIsoDays, clamp, round1, toIsoDate } from './date';
 
 function paceRange(minPerKm: number, deltaSec: number): string {
