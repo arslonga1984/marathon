@@ -14,7 +14,7 @@ import {
 } from 'recharts';
 import type { AppStateV1, IsoDate, Settings, TrainingLogEntry, WorkoutType } from './types';
 import { formatKoreanShort, fromIsoDate, round1, toIsoDate } from './lib/date';
-import { generate24WeekPlan, parseTimeToSeconds, secToPace, secondsToHms, workoutLabel } from './lib/plan';
+import { defaultSettings, generate24WeekPlan, parseTimeToSeconds, secToPace, secondsToHms, workoutLabel } from './lib/plan';
 import { auth } from './lib/firebase';
 import { loadUserState, saveUserState, clearUserState } from './lib/firestore';
 import { LoginScreen } from './components/LoginScreen';
@@ -52,12 +52,24 @@ function asNumber(v: string): number | null {
 }
 
 export default function App() {
+  // ===== 모든 Hook은 컴포넌트 최상단에서 항상 실행되어야 합니다 =====
+  // React Hook 규칙: Hook은 항상 같은 순서로 호출되어야 하며,
+  // 조건문이나 return 문 이후에 호출되면 안 됩니다.
+  
+  // 1. 모든 useState Hook 선언
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('plan');
   const [state, setState] = useState<AppStateV1 | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<number>(1);
+  const [logDate, setLogDate] = useState<IsoDate>(() => toIsoDate(new Date()));
+  const [logKm, setLogKm] = useState<string>('');
+  const [hh, setHh] = useState<string>('0');
+  const [mm, setMm] = useState<string>('0');
+  const [ss, setSs] = useState<string>('0');
+  const [note, setNote] = useState<string>('');
 
+  // 2. 모든 useEffect Hook 선언
   // 인증 상태 감지
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -70,6 +82,12 @@ export default function App() {
         } catch (error) {
           console.error('Failed to load user data:', error);
           alert('데이터를 불러오는데 실패했습니다.');
+          // 로그인은 되었지만 데이터 로드 실패 시에도 빈 화면이 나오지 않게 null로 두지 않음
+          setState({
+            version: 1,
+            settings: defaultSettings(),
+            logsByDate: {},
+          });
         }
       } else {
         setState(null);
@@ -97,28 +115,20 @@ export default function App() {
     }
   }
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <div className="muted">로딩 중...</div>
-      </div>
-    );
-  }
-
-  if (!user || !state) {
-    return <LoginScreen />;
-  }
-
-  const plan = useMemo(() => generate24WeekPlan(state.settings), [state.settings]);
+  const plan = useMemo(() => {
+    const settings = state?.settings ?? defaultSettings();
+    return generate24WeekPlan(settings);
+  }, [state?.settings]);
 
   useEffect(() => {
     // auto-select current week based on today
+    if (!state) return;
     const start = fromIsoDate(state.settings.planStartDate).getTime();
     const today = new Date();
     const diffDays = Math.floor((today.getTime() - start) / (1000 * 60 * 60 * 24));
     const w = Math.floor(diffDays / 7) + 1;
     if (w >= 1 && w <= 24) setSelectedWeek(w);
-  }, [state.settings.planStartDate]);
+  }, [state?.settings.planStartDate]);
 
   const week = plan.find((w) => w.weekNumber === selectedWeek) ?? plan[0];
 
@@ -129,7 +139,10 @@ export default function App() {
   }, [plan, todayIso]);
 
   const plannedToDateKm = useMemo(() => sum(pastDays.map((d) => d.plannedKm)), [pastDays]);
-  const actualToDateKm = useMemo(() => sum(Object.values(state.logsByDate).map((e) => e.distanceKm)), [state.logsByDate]);
+  const actualToDateKm = useMemo(() => {
+    if (!state) return 0;
+    return sum(Object.values(state.logsByDate).map((e) => e.distanceKm));
+  }, [state]);
 
   const completionPct = plannedToDateKm > 0 ? Math.min(100, Math.round((actualToDateKm / plannedToDateKm) * 100)) : 0;
 
@@ -139,31 +152,26 @@ export default function App() {
       const actual = round1(
         sum(
           w.days
-            .map((d) => state.logsByDate[d.date]?.distanceKm ?? 0)
+            .map((d) => (state ? state.logsByDate[d.date]?.distanceKm ?? 0 : 0))
             .filter((n) => Number.isFinite(n)),
         ),
       );
       return { week: `W${w.weekNumber}`, planned, actual };
     });
-  }, [plan, state.logsByDate]);
+  }, [plan, state]);
 
   const longRunChart = useMemo(() => {
     return plan.map((w) => {
       const longDay = w.days.find((d) => d.type === 'long');
       const planned = longDay?.plannedKm ?? 0;
-      const actual = longDay ? state.logsByDate[longDay.date]?.distanceKm ?? 0 : 0;
+      const actual = longDay && state ? state.logsByDate[longDay.date]?.distanceKm ?? 0 : 0;
       return { week: w.weekNumber, planned, actual };
     });
-  }, [plan, state.logsByDate]);
+  }, [plan, state]);
 
-  const [logDate, setLogDate] = useState<IsoDate>(todayIso);
-  const [logKm, setLogKm] = useState<string>(''); // controlled
-  const [hh, setHh] = useState<string>('0');
-  const [mm, setMm] = useState<string>('0');
-  const [ss, setSs] = useState<string>('0');
-  const [note, setNote] = useState<string>('');
-
+  // 로그 입력 필드 동기화
   useEffect(() => {
+    if (!state) return;
     const existing = state.logsByDate[logDate];
     if (!existing) return;
     setLogKm(String(existing.distanceKm));
@@ -172,7 +180,7 @@ export default function App() {
     setMm(String(Math.floor((t % 3600) / 60)));
     setSs(String(t % 60));
     setNote(existing.note ?? '');
-  }, [logDate, state.logsByDate]);
+  }, [logDate, state]);
 
   function saveLog(): void {
     if (!state) return;
@@ -222,17 +230,43 @@ export default function App() {
     return allDays.find((d) => d.date >= todayIso && d.type !== 'rest') ?? allDays.find((d) => d.date >= todayIso);
   }, [plan, todayIso]);
 
+  // ---- Render 분기 (Hook 이후에만) ----
+  // 인증 정보는 있지만 유저 상태를 아직 못 불러온 경우도 로딩으로 처리
+  if (loading || (user && !state)) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div className="muted">로딩 중...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginScreen />;
+  }
+
+  // 방어: 여기까지 왔는데도 state가 없으면 로딩 처리
+  if (!state) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <div className="muted">로딩 중...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">
             <div className="brand-title">24주 마라톤 플래너</div>
-            <div className="brand-subtitle">초보(주 10km) → 풀코스 완주</div>
+            <div className="brand-subtitle">
+              {user.displayName ? `${user.displayName}님, 초보(주 10km) → 풀코스 완주` : '초보(주 10km) → 풀코스 완주'}
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div className="muted" style={{ fontSize: '13px' }}>
-              {user.email}
+            <div className="muted" style={{ fontSize: '13px', textAlign: 'right' }}>
+              <div>{user.displayName ?? '로그인됨'}</div>
+              <div style={{ fontSize: '11px', opacity: 0.8 }}>{user.email}</div>
             </div>
             <button className="btn" onClick={handleLogout} style={{ padding: '6px 12px', fontSize: '13px' }}>
               로그아웃
@@ -649,9 +683,9 @@ export default function App() {
             <aside className="card">
               <h2>데이터</h2>
               <div className="muted" style={{ fontSize: 13, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div>
+      <div>
                   - 모든 데이터는 **Firebase 클라우드**에 저장되어 모든 기기에서 동기화됩니다.
-                </div>
+      </div>
                 <button
                   className="btn danger"
                   onClick={async () => {
@@ -671,13 +705,13 @@ export default function App() {
                   }}
                 >
                   모든 데이터 초기화
-                </button>
+        </button>
               </div>
             </aside>
           </div>
         )}
       </main>
-    </div>
+      </div>
   );
 }
 
