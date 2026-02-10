@@ -1,5 +1,5 @@
 import type { PlanDay, PlanWeek, Settings, WorkoutType } from '../types';
-import { addIsoDays, clamp, round1, toIsoDate } from './date';
+import { addIsoDays, clamp, getStartOfWeek, round1, toIsoDate } from './date';
 
 function paceRange(minPerKm: number, deltaSec: number): string {
   const baseSec = Math.round(minPerKm * 60);
@@ -121,10 +121,11 @@ function distributeWeek(week: number, targetKm: number): { easy1: number; tempo:
 }
 
 export function generate24WeekPlan(settings: Settings): PlanWeek[] {
+  const adjustedStartDate = getStartOfWeek(settings.planStartDate);
   const weeks: PlanWeek[] = [];
 
   for (let w = 1; w <= 24; w++) {
-    const start = addIsoDays(settings.planStartDate, (w - 1) * 7);
+    const start = addIsoDays(adjustedStartDate, (w - 1) * 7);
     const end = addIsoDays(start, 6);
 
     const target = w >= 22 ? 0 : weeklyTargetKm(w, settings.baseWeeklyKm, settings.peakWeeklyCapKm);

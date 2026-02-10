@@ -1,4 +1,4 @@
-import { addDays, format, parseISO, startOfDay } from 'date-fns';
+import { addDays, format, parseISO, startOfDay, startOfWeek } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import type { IsoDate } from '../types';
 
@@ -14,6 +14,11 @@ export function addIsoDays(s: IsoDate, days: number): IsoDate {
   return toIsoDate(addDays(fromIsoDate(s), days));
 }
 
+export function getStartOfWeek(s: IsoDate): IsoDate {
+  // weekStartsOn: 1 (Monday)
+  return toIsoDate(startOfWeek(fromIsoDate(s), { weekStartsOn: 1 }));
+}
+
 export function formatKoreanShort(s: IsoDate): string {
   const d = fromIsoDate(s);
   return format(d, 'M/d (EEE)', { locale: ko });
@@ -26,4 +31,3 @@ export function clamp(n: number, min: number, max: number): number {
 export function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
-
