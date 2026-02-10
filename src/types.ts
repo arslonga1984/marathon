@@ -39,3 +39,5 @@ export type AppStateV1 = {
   logsByDate: Record<IsoDate, TrainingLogEntry>;
 };
 
+export type Tab = 'plan' | 'log' | 'progress' | 'status' | 'settings';
+
