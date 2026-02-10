@@ -13,11 +13,18 @@ interface LogViewProps {
     initialNote: string;
 }
 
+// Helper to generate range arrays
+const hours = Array.from({ length: 10 }, (_, i) => i); // 0~9h
+const minutes = Array.from({ length: 60 }, (_, i) => i); // 0~59m
+const seconds = Array.from({ length: 60 }, (_, i) => i); // 0~59s
+
 export function LogView({ logsByDate, logDate, setLogDate, onSaveLog, initialKm, initialNote }: LogViewProps) {
     const [logKm, setLogKm] = useState<string>(initialKm);
-    const [hh, setHh] = useState<string>('0');
-    const [mm, setMm] = useState<string>('0');
-    const [ss, setSs] = useState<string>('0');
+
+    // Store time as numbers for select
+    const [hh, setHh] = useState<number>(0);
+    const [mm, setMm] = useState<number>(0);
+    const [ss, setSs] = useState<number>(0);
     const [note, setNote] = useState<string>(initialNote);
 
     // 선택된 날짜의 로그를 불러와서 입력 폼에 채우기
@@ -26,29 +33,29 @@ export function LogView({ logsByDate, logDate, setLogDate, onSaveLog, initialKm,
         if (existing) {
             setLogKm(String(existing.distanceKm));
             const t = existing.timeSeconds;
-            setHh(String(Math.floor(t / 3600)));
-            setMm(String(Math.floor((t % 3600) / 60)));
-            setSs(String(t % 60));
+            setHh(Math.floor(t / 3600));
+            setMm(Math.floor((t % 3600) / 60));
+            setSs(t % 60);
             setNote(existing.note ?? '');
         } else {
             // 기록이 없으면 초기값(계획 거리 등)으로 설정
             setLogKm(initialKm || '');
             setNote(initialNote || '');
-            setHh('0');
-            setMm('0');
-            setSs('0');
+            setHh(0);
+            setMm(0);
+            setSs(0);
         }
     }, [logDate, logsByDate, initialKm, initialNote]);
 
     function handleSave() {
         const km = Number(logKm);
-        const seconds = Number(hh) * 3600 + Number(mm) * 60 + Number(ss);
+        const totalSeconds = hh * 3600 + mm * 60 + ss;
 
-        if (!km || km <= 0 || !seconds || seconds <= 0) {
+        if (!km || km <= 0 || !totalSeconds || totalSeconds <= 0) {
             alert('거리와 시간을 올바르게 입력해주세요.');
             return;
         }
-        onSaveLog(logDate, km, seconds, note);
+        onSaveLog(logDate, km, totalSeconds, note);
         alert('저장되었습니다.');
     }
 
@@ -70,11 +77,31 @@ export function LogView({ logsByDate, logDate, setLogDate, onSaveLog, initialKm,
                         <input inputMode="decimal" placeholder="예: 8.0" value={logKm} onChange={(e) => setLogKm(e.target.value)} />
                     </div>
                     <div className="field">
-                        <label>시간 (h:m:s)</label>
-                        <div className="row" style={{ gap: 6 }}>
-                            <input style={{ width: 70 }} value={hh} onChange={(e) => setHh(e.target.value)} />
-                            <input style={{ width: 70 }} value={mm} onChange={(e) => setMm(e.target.value)} />
-                            <input style={{ width: 70 }} value={ss} onChange={(e) => setSs(e.target.value)} />
+                        <label>시간 (시 : 분 : 초)</label>
+                        <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                            <select value={hh} onChange={(e) => setHh(Number(e.target.value))} style={{ minWidth: '70px' }}>
+                                {hours.map((h) => (
+                                    <option key={h} value={h}>
+                                        {h}시간
+                                    </option>
+                                ))}
+                            </select>
+                            <span>:</span>
+                            <select value={mm} onChange={(e) => setMm(Number(e.target.value))} style={{ minWidth: '70px' }}>
+                                {minutes.map((m) => (
+                                    <option key={m} value={m}>
+                                        {m}분
+                                    </option>
+                                ))}
+                            </select>
+                            <span>:</span>
+                            <select value={ss} onChange={(e) => setSs(Number(e.target.value))} style={{ minWidth: '70px' }}>
+                                {seconds.map((s) => (
+                                    <option key={s} value={s}>
+                                        {s}초
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
                     <div className="field" style={{ flex: 1, minWidth: 220 }}>
