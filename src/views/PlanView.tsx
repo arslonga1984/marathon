@@ -112,8 +112,6 @@ export function PlanView({ plan, selectedWeek, setSelectedWeek, logsByDate, onEd
                                             <button
                                                 className="btn primary"
                                                 onClick={() => onAddLog(d.date, d.plannedKm)}
-                                                disabled={d.type === 'rest'}
-                                                title={d.type === 'rest' ? '휴식일은 기록을 생략해도 됩니다.' : undefined}
                                             >
                                                 기록하기
                                             </button>

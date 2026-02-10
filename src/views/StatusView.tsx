@@ -46,7 +46,6 @@ export function StatusView({ plannedToDateKm, actualToDateKm, completionPct, nex
                                 <button
                                     className="btn primary"
                                     onClick={() => onGoToLog(nextPlanned.date, nextPlanned.plannedKm)}
-                                    disabled={nextPlanned.type === 'rest'}
                                 >
                                     기록 입력하러 가기
                                 </button>
