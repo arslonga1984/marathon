@@ -233,6 +233,7 @@ select {
   padding: 0 1rem;
   border-radius: var(--radius-sm);
   transition: border-color 0.2s, box-shadow 0.2s;
+  color-scheme: dark;
 }
 
 .field input:focus,
@@ -401,8 +402,9 @@ select {
   color: var(--text-muted);
 }
 
-/* Fix dropdown option visibility in dark mode */
+/* Fix dropdown option visibility */
 select option {
-  background-color: var(--bg-surface);
-  color: var(--text-main);
+  /* Force system default colors for maximum compatibility */
+  background-color: white;
+  color: black;
 }
